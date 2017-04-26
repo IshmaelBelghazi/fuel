@@ -155,6 +155,60 @@ def convert_celeba_64(directory, output_directory,
 
     return (output_path,)
 
+@check_exists(required_files=DATASET_FILES)
+def convert_celeba_128(directory, output_directory,
+                      output_filename='celeba_128.hdf5'):
+    """Converts the 128x128 version of the CelebA dataset to HDF5.
+
+    This converter takes the aligned and cropped version of the
+    CelebA dataset as input and produces a version that's been resized
+    to 78x64 pixels and then center cropped to 128x128 pixels.
+
+    Converts the CelebA dataset to an HDF5 dataset compatible with
+    :class:`fuel.datasets.CelebA`. The converted dataset is saved as
+    'celeba_128.hdf5'.
+
+    It assumes the existence of the following files:
+
+    * `img_align_celeba.zip`
+    * `list_attr_celeba.txt`
+
+    Parameters
+    ----------
+    directory : str
+        Directory in which input files reside.
+    output_directory : str
+        Directory in which to save the converted dataset.
+    output_filename : str, optional
+        Name of the saved dataset. Defaults to 'celeba_64.hdf5'.
+
+    Returns
+    -------
+    output_paths : tuple of str
+        Single-element tuple containing the path to the converted dataset.
+
+    """
+    output_path = os.path.join(output_directory, output_filename)
+    h5file = _initialize_conversion(directory, output_path, (128, 128))
+
+    features_dataset = h5file['features']
+    image_file_path = os.path.join(directory, IMAGE_FILE)
+    with zipfile.ZipFile(image_file_path, 'r') as image_file:
+        with progress_bar('images', NUM_EXAMPLES) as bar:
+            for i in range(NUM_EXAMPLES):
+                image_name = 'img_align_celeba/{:06d}.jpg'.format(i + 1)
+
+                image = Image.open(
+                    image_file.open(image_name, 'r')).resize(
+                        (128, 128 + 7 * 4), Image.ANTIALIAS).crop((0, 7 * 2, 128, 128 + 7 * 2))
+
+                features_dataset[i] = numpy.asarray(image).transpose(2, 0, 1)
+                bar.update(i + 1)
+
+    h5file.flush()
+    h5file.close()
+
+    return (output_path,)
 
 def convert_celeba(which_format, directory, output_directory,
                    output_filename=None):
@@ -168,7 +222,7 @@ def convert_celeba(which_format, directory, output_directory,
     Parameters
     ----------
     which_format : str
-        Either 'aligned_cropped' or '64'. Determines which format
+        Either 'aligned_cropped', '64' or '128'. Determines which format
         to convert to.
     directory : str
         Directory in which input files reside.
@@ -185,13 +239,16 @@ def convert_celeba(which_format, directory, output_directory,
         Single-element tuple containing the path to the converted dataset.
 
     """
-    if which_format not in ('aligned_cropped', '64'):
+    if which_format not in ('aligned_cropped', '64', '128'):
         raise ValueError("CelebA format needs to be either "
-                         "'aligned_cropped' or '64'.")
+                         "'aligned_cropped', '64' or '128'.")
     if not output_filename:
         output_filename = 'celeba_{}.hdf5'.format(which_format)
     if which_format == 'aligned_cropped':
         return convert_celeba_aligned_cropped(
+            directory, output_directory, output_filename)
+    elif which_format == '128':
+        return convert_celeba_128(
             directory, output_directory, output_filename)
     else:
         return convert_celeba_64(
@@ -209,5 +266,5 @@ def fill_subparser(subparser):
     """
     subparser.add_argument(
         "which_format", help="which dataset format", type=str,
-        choices=('aligned_cropped', '64'))
+        choices=('aligned_cropped', '64', '128'))
     return convert_celeba

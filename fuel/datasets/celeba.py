@@ -26,9 +26,9 @@ class CelebA(H5PYDataset):
 
     Parameters
     ----------
-    which_format : {'aligned_cropped, '64'}
-        Either the aligned and cropped version of CelebA, or
-        a 64x64 version of it.
+    which_format : {'aligned_cropped, '64', '128'}
+        Either the aligned and cropped version of CelebA (raw),
+        a 64x64, or 128x128 version of it.
     which_sets : tuple of str
         Which split to load. Valid values are 'train', 'valid' and
         'test' corresponding to the training set (162,770 examples), the
